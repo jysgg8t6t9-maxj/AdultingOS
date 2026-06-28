@@ -375,7 +375,6 @@ const CSS = `
 
 export default function AdultingOS() {
   const [data, setData] = useState(null);
-  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
   const [direction, setDirection] = useState("right");
   const [financesSubTab, setFinancesSubTab] = useState("overview");
