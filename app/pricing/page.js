@@ -76,7 +76,14 @@ export default function PricingPage() {
             <li><span className="pg-check">✓</span> Life Admin deadline tracking</li>
             <li><span className="pg-check">✓</span> Manage or cancel anytime</li>
           </ul>
-
+		<div style={{ background: "#212229", borderRadius: 14, padding: 16, marginBottom: 22, textAlign: "left" }}>
+  		<div style={{ fontSize: 10.5, color: "#6E7B8E", fontWeight: 700, textTransform: "uppercase", marginBottom: 8 }}>Your Life Score</div>
+  		<div style={{ display: "flex", alignItems: "baseline", gap: 6 }}>
+    		<span style={{ fontSize: 30, fontWeight: 800 }}>53</span>
+   		 <span style={{ fontSize: 13, color: "#6E7B8E" }}>/100</span>
+ 		 </div>
+ 		 <div style={{ fontSize: 12, color: "#9499A8", marginTop: 2 }}>Calculated from your real savings, debt, and spending — not a quiz.</div>
+		</div>
           <button className="pg-btn" onClick={subscribe} disabled={loading}>
             {loading ? "Redirecting to checkout…" : "Subscribe"}
           </button>

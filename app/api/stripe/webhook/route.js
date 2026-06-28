@@ -22,6 +22,7 @@ export async function POST(req) {
       stripe_subscription_id: s.subscription,
       subscription_status: "active",
       updated_at: new Date().toISOString(),
+      email: s.customer_details?.email,
     });
     if (error) console.error("Supabase upsert failed:", error.message);
   }

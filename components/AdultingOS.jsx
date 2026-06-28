@@ -30,10 +30,12 @@ function lighten(hex, amt) {
   const nr = Math.round(r + (255 - r) * amt), ng = Math.round(g + (255 - g) * amt), nb = Math.round(b + (255 - b) * amt);
   return `rgb(${nr},${ng},${nb})`;
 }
-async function hashPassword(pw) {
-  const enc = new TextEncoder().encode(pw);
-  const buf = await crypto.subtle.digest("SHA-256", enc);
-  return Array.from(new Uint8Array(buf)).map((b) => b.toString(16).padStart(2, "0")).join("");
+
+async function hashPassword(pw, existingSaltHex) {
+  const salt = existingSaltHex ? hexToBytes(existingSaltHex) : crypto.getRandomValues(new Uint8Array(16));
+  const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
+  const derived = await crypto.subtle.deriveBits({ name: "PBKDF2", salt, iterations: 250000, hash: "SHA-256" }, keyMaterial, 256);
+  return { hash: bytesToHex(new Uint8Array(derived)), salt: bytesToHex(salt) };
 }
 
 const DEFAULT_FINANCES = {
@@ -70,7 +72,7 @@ const DEFAULT_DATA = {
     ],
   },
   emergency: { contacts: [], medical: { bloodType: "", allergies: "", conditions: "" }, insurance: { provider: "", policyNumber: "" } },
-  security: { passwordSet: false, passwordHash: "", email: "" },
+  security: { passwordSet: false, passwordHash: "", salt: "", email: "" },
   meta: { diagnosticSeen: false },
 };
 
@@ -373,6 +375,7 @@ const CSS = `
 
 export default function AdultingOS() {
   const [data, setData] = useState(null);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [activeTab, setActiveTab] = useState("home");
   const [direction, setDirection] = useState("right");
   const [financesSubTab, setFinancesSubTab] = useState("overview");
@@ -405,7 +408,7 @@ export default function AdultingOS() {
           documents: { ...DEFAULT_DATA.documents, ...raw.documents },
           emergency: { ...DEFAULT_DATA.emergency, ...raw.emergency },
           security: { ...DEFAULT_DATA.security, ...raw.security },
-          meta: { ...DEFAULT_DATA.meta, ...raw.meta },
+          meta: { diagnosticSeen: false, onboarded: false },
         };
         delete merged.money;
         setData(merged);
@@ -415,16 +418,24 @@ export default function AdultingOS() {
   }, []);
 
   useEffect(() => {
-    if (data && loadedRef.current) storage.set(STORAGE_KEY, JSON.stringify(data)).catch(() => {});
-  }, [data]);
+  if (data && loadedRef.current) {
+    const t = setTimeout(() => { storage.set(STORAGE_KEY, JSON.stringify(data)).catch(() => {}); }, 600);
+    return () => clearTimeout(t);
+  }
+}, [data]);
 
-  useEffect(() => {
-    if (data && !autoOpenedRef.current && !data.meta.diagnosticSeen) {
-      autoOpenedRef.current = true;
+useEffect(() => {
+  if (data && !autoOpenedRef.current) {
+    autoOpenedRef.current = true;
+    if (!data.meta.onboarded) {
+      const t = setTimeout(() => setOnboardingOpen(true), 500);
+      return () => clearTimeout(t);
+    } else if (!data.meta.diagnosticSeen) {
       const t = setTimeout(() => setDiagnosticOpen(true), 500);
       return () => clearTimeout(t);
     }
-  }, [data]);
+  }
+}, [data]);
 
   const factors = useMemo(() => (data ? computeFactors(data) : []), [data]);
   const totalScore = factors.length ? Math.round(factors.reduce((s, f) => s + f.value, 0) / factors.length) : 0;
@@ -1251,8 +1262,8 @@ function VaultTab({ data, update }) {
     return (
       <SecuritySetup
         onSetup={async (email, pw) => {
-          const hash = await hashPassword(pw);
-          update(["security"], { passwordSet: true, passwordHash: hash, email });
+          const { hash, salt } = await hashPassword(pw);
+          update(["security"], { passwordSet: true, passwordHash: hash, salt, email });
           setUnlocked(true);
         }}
       />
@@ -1267,8 +1278,9 @@ function VaultTab({ data, update }) {
       return (
         <ResetPasswordStep
           onReset={async (pw) => {
-            const hash = await hashPassword(pw);
+            const { hash, salt } = await hashPassword(pw);
             update(["security", "passwordHash"], hash);
+            update(["security", "salt"], salt);
             setUnlocked(true);
             setMode("lock");
           }}
@@ -1280,7 +1292,7 @@ function VaultTab({ data, update }) {
         value={pwInput} setValue={setPwInput} error={error}
         onForgot={() => { setMode("forgot-email"); setError(""); }}
         onSubmit={async () => {
-          const hash = await hashPassword(pwInput);
+          const { hash } = await hashPassword(pwInput, security.salt);
           if (hash === security.passwordHash) { setUnlocked(true); setError(""); setPwInput(""); }
           else setError("Incorrect password.");
         }}
@@ -1361,6 +1373,63 @@ function LifeScoreTab({ factors, totalScore, selectedFactor, setSelectedFactor }
 }
 
 function SettingsTab({ data, update, setData }) {
+  function OnboardingWizard({ update, onComplete }) {
+  const [step, setStep] = useState(0);
+  const [name, setName] = useState("");
+  const [income, setIncome] = useState("");
+  const [savingsGoal, setSavingsGoal] = useState("");
+  const [savingsCurrent, setSavingsCurrent] = useState("");
+
+  const finish = () => {
+    if (name) update(["profile", "name"], name);
+    update(["finances", "income", "monthly"], Number(income) || 0);
+    update(["money", "savingsGoal"], Number(savingsGoal) || 0);
+    update(["finances", "emergencyFund", "current"], Number(savingsCurrent) || 0);
+    update(["meta", "onboarded"], true);
+    onComplete();
+  };
+
+  return (
+    <div className="diag-overlay">
+      <div className="diag-body">
+        {step === 0 && (
+          <>
+            <div className="diag-eyebrow">Welcome</div>
+            <div className="diag-title">Let's set up your diagnostic</div>
+            <div className="diag-sub">Two quick questions — your Life Score is only as real as the numbers behind it.</div>
+            <div style={{ width: "100%", maxWidth: 360 }}>
+              <div className="aos-fieldset"><label>Your name</label><input className="aos-input" style={{ width: "100%" }} value={name} onChange={(e) => setName(e.target.value)} /></div>
+              <button className="aos-btn" style={{ width: "100%", justifyContent: "center" }} onClick={() => setStep(1)}>Continue</button>
+            </div>
+          </>
+        )}
+        {step === 1 && (
+          <>
+            <div className="diag-eyebrow">Income</div>
+            <div className="diag-title">What's your monthly income?</div>
+            <div className="diag-sub">This calibrates your money-leak detection and risk report.</div>
+            <div style={{ width: "100%", maxWidth: 360 }}>
+              <div className="aos-fieldset"><label>Monthly income (£)</label><input className="aos-input" type="number" style={{ width: "100%" }} value={income} onChange={(e) => setIncome(e.target.value)} /></div>
+              <button className="aos-btn" style={{ width: "100%", justifyContent: "center" }} onClick={() => setStep(2)}>Continue</button>
+            </div>
+          </>
+        )}
+        {step === 2 && (
+          <>
+            <div className="diag-eyebrow">Savings</div>
+            <div className="diag-title">Where do your savings stand?</div>
+            <div className="diag-sub">Rough numbers are fine — you can refine these anytime in Finances.</div>
+            <div style={{ width: "100%", maxWidth: 360 }}>
+              <div className="aos-fieldset"><label>Savings goal (£)</label><input className="aos-input" type="number" style={{ width: "100%" }} value={savingsGoal} onChange={(e) => setSavingsGoal(e.target.value)} /></div>
+              <div className="aos-fieldset"><label>Currently saved (£)</label><input className="aos-input" type="number" style={{ width: "100%" }} value={savingsCurrent} onChange={(e) => setSavingsCurrent(e.target.value)} /></div>
+              <button className="aos-btn" style={{ width: "100%", justifyContent: "center" }} onClick={finish}>See my diagnostic</button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+}
   const fileRef = useRef(null);
 
   const manageBilling = async () => {
@@ -1416,6 +1485,9 @@ function SettingsTab({ data, update, setData }) {
     </div>
   );
 }
+{onboardingOpen && (
+  <OnboardingWizard update={update} onComplete={() => { setOnboardingOpen(false); setDiagnosticOpen(true); }} />
+)}
 function DiagnosticOverlay({ totalScore, diagnostic, step, setStep, onClose }) {
   const steps = ["score", "leaks", "risks", "balance", "advice"];
   const animScore = useCountUp(totalScore, 1100);
