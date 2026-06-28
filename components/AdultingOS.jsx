@@ -381,6 +381,7 @@ export default function AdultingOS() {
   const [financesSubTab, setFinancesSubTab] = useState("overview");
   const [selectedFactor, setSelectedFactor] = useState(null);
   const [diagnosticOpen, setDiagnosticOpen] = useState(false);
+  const [onboardingOpen, setOnboardingOpen] = useState(false);
   const [diagStep, setDiagStep] = useState(0);
   const loadedRef = useRef(false);
   const autoOpenedRef = useRef(false);
