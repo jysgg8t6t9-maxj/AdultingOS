@@ -493,7 +493,9 @@ useEffect(() => {
           {activeTab === "settings" && <SettingsTab data={data} update={update} setData={setData} />}
         </div>
       </div>
-
+      {onboardingOpen && (
+        <OnboardingWizard update={update} onComplete={() => { setOnboardingOpen(false); setDiagnosticOpen(true); }} />
+      )}
       {diagnosticOpen && diagnostic && (
         <DiagnosticOverlay totalScore={totalScore} diagnostic={diagnostic} step={diagStep} setStep={setDiagStep} onClose={closeDiagnostic} />
       )}
@@ -1485,9 +1487,6 @@ function SettingsTab({ data, update, setData }) {
     </div>
   );
 }
-{onboardingOpen && (
-  <OnboardingWizard update={update} onComplete={() => { setOnboardingOpen(false); setDiagnosticOpen(true); }} />
-)}
 function DiagnosticOverlay({ totalScore, diagnostic, step, setStep, onClose }) {
   const steps = ["score", "leaks", "risks", "balance", "advice"];
   const animScore = useCountUp(totalScore, 1100);
