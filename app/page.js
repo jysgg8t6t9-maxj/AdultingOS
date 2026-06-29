@@ -203,8 +203,10 @@ export default function LandingPage() {
         </section>
 
         <footer className="lp-footer">
-          Adulting OS · adultingos.co.uk
-        </footer>
+  Adulting OS · adultingos.co.uk
+  <br />
+  <Link href="/privacy" style={{ color: "#5E6B7D" }}>Privacy Policy</Link> · <Link href="/terms" style={{ color: "#5E6B7D" }}>Terms of Service</Link>
+</footer>
       </div>
     </div>
   );
