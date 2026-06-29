@@ -1,4 +1,5 @@
 export const dynamic = "force-dynamic";
+
 import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
@@ -14,6 +15,20 @@ export async function POST() {
   );
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
+
+  const { data: existingProfile } = await supabase
+    .from("profiles")
+    .select("subscription_status, stripe_customer_id")
+    .eq("user_id", user.id)
+    .maybeSingle();
+
+  if (existingProfile && ["active", "trialing"].includes(existingProfile.subscription_status)) {
+    const portalSession = await stripe.billingPortal.sessions.create({
+      customer: existingProfile.stripe_customer_id,
+      return_url: `${process.env.NEXT_PUBLIC_SITE_URL}/app`,
+    });
+    return Response.json({ url: portalSession.url });
+  }
 
   const session = await stripe.checkout.sessions.create({
     mode: "subscription",
