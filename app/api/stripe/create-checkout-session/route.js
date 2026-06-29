@@ -4,15 +4,16 @@ import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
-
 export async function POST() {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+
   const cookieStore = await cookies();
   const supabase = createServerClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
     { cookies: { getAll: () => cookieStore.getAll() } }
   );
+
   const { data: { user } } = await supabase.auth.getUser();
   if (!user) return new Response("Unauthorized", { status: 401 });
 
