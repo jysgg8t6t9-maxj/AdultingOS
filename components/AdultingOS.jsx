@@ -1431,6 +1431,8 @@ function OnboardingWizard({ update, onComplete }) {
     </div>
   );
 }
+
+function SettingsTab({ data, update, setData }) {
   const fileRef = useRef(null);
 
   const manageBilling = async () => {
@@ -1485,6 +1487,7 @@ function OnboardingWizard({ update, onComplete }) {
       </div>
     </div>
   );
+}
 
 function DiagnosticOverlay({ totalScore, diagnostic, step, setStep, onClose }) {
   const steps = ["score", "leaks", "risks", "balance", "advice"];
