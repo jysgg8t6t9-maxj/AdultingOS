@@ -1374,8 +1374,7 @@ function LifeScoreTab({ factors, totalScore, selectedFactor, setSelectedFactor }
   );
 }
 
-function SettingsTab({ data, update, setData }) {
-  function OnboardingWizard({ update, onComplete }) {
+function OnboardingWizard({ update, onComplete }) {
   const [step, setStep] = useState(0);
   const [name, setName] = useState("");
   const [income, setIncome] = useState("");
@@ -1486,7 +1485,7 @@ function SettingsTab({ data, update, setData }) {
       </div>
     </div>
   );
-}
+
 function DiagnosticOverlay({ totalScore, diagnostic, step, setStep, onClose }) {
   const steps = ["score", "leaks", "risks", "balance", "advice"];
   const animScore = useCountUp(totalScore, 1100);
