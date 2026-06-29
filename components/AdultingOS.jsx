@@ -31,6 +31,8 @@ function lighten(hex, amt) {
   return `rgb(${nr},${ng},${nb})`;
 }
 
+function bytesToHex(bytes) { return Array.from(bytes).map((b) => b.toString(16).padStart(2, "0")).join(""); }
+function hexToBytes(hex) { const b = new Uint8Array(hex.length / 2); for (let i = 0; i < b.length; i++) b[i] = parseInt(hex.substr(i * 2, 2), 16); return b; }
 async function hashPassword(pw, existingSaltHex) {
   const salt = existingSaltHex ? hexToBytes(existingSaltHex) : crypto.getRandomValues(new Uint8Array(16));
   const keyMaterial = await crypto.subtle.importKey("raw", new TextEncoder().encode(pw), "PBKDF2", false, ["deriveBits"]);
@@ -73,7 +75,7 @@ const DEFAULT_DATA = {
   },
   emergency: { contacts: [], medical: { bloodType: "", allergies: "", conditions: "" }, insurance: { provider: "", policyNumber: "" } },
   security: { passwordSet: false, passwordHash: "", salt: "", email: "" },
-  meta: { diagnosticSeen: false },
+  meta: { diagnosticSeen: false, onboarded: false },
 };
 
 const NAV = [
@@ -408,7 +410,7 @@ export default function AdultingOS() {
           documents: { ...DEFAULT_DATA.documents, ...raw.documents },
           emergency: { ...DEFAULT_DATA.emergency, ...raw.emergency },
           security: { ...DEFAULT_DATA.security, ...raw.security },
-          meta: { diagnosticSeen: false, onboarded: false },
+          meta: { ...DEFAULT_DATA.meta, ...raw.meta },
         };
         delete merged.money;
         setData(merged);
@@ -1384,7 +1386,6 @@ function OnboardingWizard({ update, onComplete }) {
   const finish = () => {
     if (name) update(["profile", "name"], name);
     update(["finances", "income", "monthly"], Number(income) || 0);
-    update(["money", "savingsGoal"], Number(savingsGoal) || 0);
     update(["finances", "emergencyFund", "current"], Number(savingsCurrent) || 0);
     update(["meta", "onboarded"], true);
     onComplete();
