@@ -1,3 +1,4 @@
+export const dynamic = "force-dynamic";
 import Stripe from "stripe";
 import { createServerClient } from "@supabase/ssr";
 import { cookies } from "next/headers";
