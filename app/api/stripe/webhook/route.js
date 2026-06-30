@@ -1,10 +1,15 @@
 export const dynamic = "force-dynamic";
-import Stripe from "stripe";
-import { supabaseAdmin } from "../../../../lib/supabaseAdmin";
 
-const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+import Stripe from "stripe";
+import { createClient } from "@supabase/supabase-js";
 
 export async function POST(req) {
+  const stripe = new Stripe(process.env.STRIPE_SECRET_KEY);
+  const supabaseAdmin = createClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL,
+    process.env.SUPABASE_SERVICE_ROLE_KEY
+  );
+
   const body = await req.text();
   const sig = req.headers.get("stripe-signature");
   let event;
@@ -22,8 +27,8 @@ export async function POST(req) {
       stripe_customer_id: s.customer,
       stripe_subscription_id: s.subscription,
       subscription_status: "active",
-      updated_at: new Date().toISOString(),
       email: s.customer_details?.email,
+      updated_at: new Date().toISOString(),
     });
     if (error) console.error("Supabase upsert failed:", error.message);
   }
